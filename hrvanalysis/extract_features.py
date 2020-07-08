@@ -124,26 +124,26 @@ def get_time_domain_features(nn_intervals: List[float]) -> dict:
     max_hr = max(heart_rate_list)
     std_hr = np.std(heart_rate_list)
 
-    time_domain_features = {
-        'mean_nni': mean_nni,
-        'sdnn': sdnn,
-        'sdsd': sdsd,
-        'nni_50': nni_50,
-        'pnni_50': pnni_50,
-        'nni_20': nni_20,
-        'pnni_20': pnni_20,
-        'rmssd': rmssd,
-        'median_nni': median_nni,
-        'range_nni': range_nni,
-        'cvsd': cvsd,
-        'cvnni': cvnni,
-        'mean_hr': mean_hr,
-        "max_hr": max_hr,
-        "min_hr": min_hr,
-        "std_hr": std_hr,
-    }
+    # time_domain_features = {
+    #     'mean_nni': mean_nni,
+    #     'sdnn': sdnn,
+    #     'sdsd': sdsd,
+    #     'nni_50': nni_50,
+    #     'pnni_50': pnni_50,
+    #     'nni_20': nni_20,
+    #     'pnni_20': pnni_20,
+    #     'rmssd': rmssd,
+    #     'median_nni': median_nni,
+    #     'range_nni': range_nni,
+    #     'cvsd': cvsd,
+    #     'cvnni': cvnni,
+    #     'mean_hr': mean_hr,
+    #     "max_hr": max_hr,
+    #     "min_hr": min_hr,
+    #     "std_hr": std_hr,
+    # }
 
-    return time_domain_features
+    return mean_nni, sdnn, sdsd, nni_50, pnni_50, nni_20, pnni_20, rmssd, median_nni, range_nni, cvsd, cvnni, mean_hr, max_hr, min_hr, std_hr
 
 
 def get_geometrical_features(nn_intervals: List[float]) -> dict:
@@ -182,16 +182,16 @@ def get_geometrical_features(nn_intervals: List[float]) -> dict:
 
     """
 
-    triang_idx = len(nn_intervals) / max(np.histogram(nn_intervals, bins=range(300, 2000, 8))[0])
+    triang_idx = len(nn_intervals) / max(np.histogram(nn_intervals, bins = range(300, 2000, 8))[0])
     # TODO
-    tinn = None
+    # tinn = None
 
-    geometrical_features = {
-        "triangular_index": triang_idx,
-        "tinn": tinn
-    }
+    # geometrical_features = {
+    #     "triangular_index": triang_idx,
+    #     "tinn": tinn
+    # }
 
-    return geometrical_features
+    return triang_idx
 
 
 # ----------------- FREQUENCY DOMAIN FEATURES ----------------- #
@@ -280,12 +280,12 @@ def get_frequency_domain_features(nn_intervals: List[float], method: str = WELCH
                                                 vlf_band=vlf_band, hf_band=hf_band)
 
     # ---------- Features calculation ---------- #
-    frequency_domain_features = _get_features_from_psd(freq=freq, psd=psd,
+    [lf_hf_ratio, hf_lf_ratio, lfnu, hfnu, vlf, total_power] = _get_features_from_psd(freq=freq, psd=psd,
                                                       vlf_band=vlf_band,
                                                       lf_band=lf_band,
                                                       hf_band=hf_band)
 
-    return frequency_domain_features
+    return lf_hf_ratio, hf_lf_ratio, lfnu, hfnu, vlf, total_power
 
 
 def _get_freq_psd_from_nn_intervals(nn_intervals: List[float], method: str = WELCH_METHOD,
@@ -321,21 +321,21 @@ def _get_freq_psd_from_nn_intervals(nn_intervals: List[float], method: str = WEL
         Power Spectral Density of the signal.
     """
 
-    timestamp_list = _create_timestamp_list(nn_intervals)
+    # timestamp_list = _create_timestamp_list(nn_intervals)
 
     if method == WELCH_METHOD:
         # ---------- Interpolation of signal ---------- #
-        funct = interpolate.interp1d(x=timestamp_list, y=nn_intervals, kind=interpolation_method)
+        # funct = interpolate.interp1d(x=timestamp_list, y=nn_intervals, kind=interpolation_method)
 
-        timestamps_interpolation = _create_interpolated_timestamp_list(nn_intervals, sampling_frequency)
-        nni_interpolation = funct(timestamps_interpolation)
+        # timestamps_interpolation = _create_interpolated_timestamp_list(nn_intervals, sampling_frequency)
+        # nni_interpolation = funct(timestamps_interpolation)
 
-        # ---------- Remove DC Component ---------- #
-        nni_normalized = nni_interpolation - np.mean(nni_interpolation)
+        # # ---------- Remove DC Component ---------- #
+        # nni_normalized = nni_interpolation - np.mean(nni_interpolation)
 
         #  --------- Compute Power Spectral Density  --------- #
-        freq, psd = signal.welch(x=nni_normalized, fs=sampling_frequency, window='hann',
-                                 nfft=4096)
+        freq, psd = signal.welch(x = nn_intervals, fs = sampling_frequency, window = 'hann',
+                                 nfft = 4096)
 
     elif method == LOMB_METHOD:
         freq, psd = LombScargle(timestamp_list, nn_intervals,
@@ -376,7 +376,7 @@ def _create_interpolated_timestamp_list(nn_intervals: List[float], sampling_freq
     ---------
     nn_intervals : list
         List of Normal to Normal Interval.
-    sampling_frequency : int
+    sampling_frYouequency : int
         Frequency at which the signal is sampled.
 
     Returns
@@ -430,6 +430,7 @@ def _get_features_from_psd(freq: List[float], psd: List[float], vlf_band: namedt
     total_power = vlf + lf + hf
 
     lf_hf_ratio = lf / hf
+    hf_lf_ratio = hf / lf
     lfnu = (lf / (lf + hf)) * 100
     hfnu = (hf / (lf + hf)) * 100
 
@@ -443,8 +444,7 @@ def _get_features_from_psd(freq: List[float], psd: List[float], vlf_band: namedt
         'vlf': vlf
     }
 
-    return freqency_domain_features
-
+    return frequency_domain_features
 
 # ----------------- NON lINEAR DOMAIN FEATURES ----------------- #
 
